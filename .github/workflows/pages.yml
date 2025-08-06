@@ -1,0 +1,61 @@
+    name: Deploy Jekyll site to Pages
+    
+    on:
+      # 当有代码推送到 master 分支时运行
+      push:
+        branches: ["master"]
+    
+      # 允许您在 Actions 选项卡手动运行此工作流
+      workflow_dispatch:
+    
+    # 设置 GITHUB_TOKEN 的权限以允许部署到 GitHub Pages
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
+    # 只允许一个并发部署
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+    
+    jobs:
+      # 构建任务
+      build:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout
+            uses: actions/checkout@v4
+          - name: Setup Ruby
+            uses: ruby/setup-ruby@v1
+            with:
+              # 使用与旧版 Jekyll 兼容的 Ruby 版本
+              ruby-version: '2.7' 
+              # 启用 bundler 缓存来加速构建
+              bundler-cache: true 
+              # 指定 Gemfile 所在目录
+              working-directory: './docs' 
+          - name: Setup Pages
+            id: pages
+            uses: actions/configure-pages@v5
+          - name: Build with Jekyll
+            # 明确告诉 Jekyll 从 docs 目录构建，并将成品放入根目录的 _site 文件夹
+            run: bundle exec jekyll build --source ./docs --destination ./_site
+          - name: Upload artifact
+            # 上传构建好的网站文件
+            uses: actions/upload-pages-artifact@v3
+            with:
+              path: './_site'
+    
+      # 部署任务
+      deploy:
+        environment:
+          name: github-pages
+          url: ${{ steps.deployment.outputs.page_url }}
+        runs-on: ubuntu-latest
+        # 必须在 build 任务成功后才运行
+        needs: build 
+        steps:
+          - name: Deploy to GitHub Pages
+            id: deployment
+            uses: actions/deploy-pages@v4
